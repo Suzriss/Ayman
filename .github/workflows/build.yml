@@ -22,26 +22,27 @@ jobs:
 
       - name: Fetch dependencies (Zsign + IDeviceKitten)
         run: |
-          echo "🔽 تنزيل Zsign..."
           rm -rf Zsign IDeviceKitten
           git clone --depth 1 --branch package https://github.com/khcrysalis/Zsign-Package Zsign
-          echo "🔽 تنزيل IDeviceKitten..."
           git clone --depth 1 https://github.com/khcrysalis/IDeviceKit IDeviceKitten
-          ls -la Zsign IDeviceKitten
+
+      - name: DEBUG - Show Zsign Package.swift
+        run: |
+          echo "========== Zsign/Package.swift =========="
+          cat Zsign/Package.swift || echo "لا يوجد Package.swift!"
+          echo ""
+          echo "========== محتويات Zsign =========="
+          ls -la Zsign
+          echo ""
+          echo "========== أسماء المنتجات (products) =========="
+          grep -A2 -i "products\|\.library\|name:" Zsign/Package.swift | head -30
 
       - name: Ensure license files exist
         run: |
           [ -f Zsign/LICENSE_LC ] || echo "License placeholder" > Zsign/LICENSE_LC
-          echo "✅ Zsign licenses:"
-          ls -la Zsign/*LICENSE* 2>/dev/null || true
 
       - name: Select latest Xcode
         run: sudo xcode-select -switch /Applications/Xcode_16.4.app
-
-      - name: Show versions
-        run: |
-          xcodebuild -version
-          xcodebuild -showsdks | grep -i ios
 
       - name: Build unsigned IPA
         run: make
