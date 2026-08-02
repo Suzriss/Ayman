@@ -1,0 +1,46 @@
+name: Build Unsigned IPA
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'CY-store-main/**'
+      - '.github/workflows/build.yml'
+
+jobs:
+  build:
+    name: Build IPA
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: CY-store-main
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_16.2.app
+
+      - name: Show versions
+        run: |
+          xcodebuild -version
+          swift --version
+
+      - name: Build unsigned IPA
+        run: make
+
+      - name: Rename IPA
+        run: |
+          mkdir -p out
+          cp packages/SYSTORE.ipa "out/CY-Store-unsigned.ipa"
+          ls -lh out/
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CY-Store-unsigned-ipa
+          path: CY-store-main/out/CY-Store-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30
