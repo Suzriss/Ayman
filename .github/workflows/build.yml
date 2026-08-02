@@ -20,6 +20,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Fetch dependencies (Zsign + IDeviceKitten)
+        run: |
+          echo "🔽 تنزيل Zsign..."
+          rm -rf Zsign IDeviceKitten
+          git clone --depth 1 --branch package https://github.com/khcrysalis/Zsign-Package Zsign
+          echo "🔽 تنزيل IDeviceKitten..."
+          git clone --depth 1 https://github.com/khcrysalis/IDeviceKit IDeviceKitten
+          echo "✅ المحتويات:"
+          ls -la Zsign IDeviceKitten
+
       - name: Select Xcode
         run: sudo xcode-select -switch /Applications/Xcode_16.2.app
 
