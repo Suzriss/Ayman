@@ -102,12 +102,7 @@ private extension View {
 		tintColor: Color,
 		fallback: Color
 	) -> some View {
-		if #available(iOS 26.0, *) {
-			Color.clear
-				.glassEffect(.regular.tint(tintColor), in: .rect(cornerRadius: 28, style: .continuous))
-		} else {
-			fallback
-		}
+		fallback
 	}
     
     // إضافة لضمان توافق وزن الخط مع iOS 15

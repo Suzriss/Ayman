@@ -70,7 +70,6 @@ public struct NBSection<Content, Footer>: View
 							.padding(.vertical, 4.4)
 							.background(Color(uiColor: .quaternarySystemFill))
 							.clipShape(Capsule())
-							.glassEffect()
 					} else {
 						Text(_headerTextSecondary)
 							.font(.caption)
