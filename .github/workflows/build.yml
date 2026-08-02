@@ -27,16 +27,19 @@ jobs:
           git clone --depth 1 --branch package https://github.com/khcrysalis/Zsign-Package Zsign
           echo "🔽 تنزيل IDeviceKitten..."
           git clone --depth 1 https://github.com/khcrysalis/IDeviceKit IDeviceKitten
-          echo "✅ المحتويات:"
           ls -la Zsign IDeviceKitten
 
-      - name: Select Xcode
-        run: sudo xcode-select -switch /Applications/Xcode_16.2.app
+      - name: List available Xcode versions
+        run: ls /Applications | grep Xcode
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -switch /Applications/Xcode_16.4.app
 
       - name: Show versions
         run: |
           xcodebuild -version
-          swift --version
+          echo "=== SDKs ==="
+          xcodebuild -showsdks | grep -i ios
 
       - name: Build unsigned IPA
         run: make
