@@ -88,8 +88,6 @@ extension AboutView {
 		} label: {
 			HStack(spacing: 18) {
 				Image("AppLogo")
-					.resizable()
-					.scaledToFill()
 					.appIconStyle(size: 45, isCircle: true)
 
 				NBTitleWithSubtitleView(
