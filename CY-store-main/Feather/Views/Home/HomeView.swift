@@ -18,6 +18,7 @@ struct HomeView: View {
     @State private var _allApps: [(source: ASRepository, app: ASRepository.App)] = []
     @State private var _recentApps: [(source: ASRepository, app: ASRepository.App)] = []
     @State private var _banners: [ASRepository.News] = []
+    @State private var _featured: [CeresifyStore.Featured] = []
     @State private var _selectedRoute: SourceAppRoute?
     @State private var isLoading = true
     @State private var _recentAppsCount = 0
@@ -34,9 +35,9 @@ struct HomeView: View {
     var body: some View {
         NBNavigationView("الرئيسية") {
             ZStack {
-                if isLoading && _recentApps.isEmpty && _banners.isEmpty {
+                if isLoading && _recentApps.isEmpty && _banners.isEmpty && _featured.isEmpty {
                     ProgressView("جاري التحديث...")
-                } else if _recentApps.isEmpty && _banners.isEmpty {
+                } else if _recentApps.isEmpty && _banners.isEmpty && _featured.isEmpty {
                     if #available(iOS 17, *) {
                         ContentUnavailableView {
                             Label("لا توجد تطبيقات", systemImage: "tray.fill")
@@ -49,6 +50,25 @@ struct HomeView: View {
                     }
                 } else {
                     List {
+                        // MARK: - قسم التطبيقات المميّزة (بطاقات كبيرة تُدار من اللوحة)
+                        if !_featured.isEmpty {
+                            Section {
+                                ForEach(_featured) { item in
+                                    Button {
+                                        if let target = _allApps.first(where: { $0.app.bundleIdentifier == item.bundleIdentifier }) {
+                                            _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
+                                        }
+                                    } label: {
+                                        FeaturedCardView(item: item)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                }
+                            }
+                        }
+
                         // MARK: - قسم البنرات الإعلانية (تُدار من لوحة تحكم Ceresify)
                         if !_banners.isEmpty {
                             Section {
@@ -199,7 +219,10 @@ struct HomeView: View {
             let topApps = Array(allApps.prefix(25))
             let validBanners = allBanners.filter { $0.imageURL != nil }
 
+            let featured = await CeresifyStore.fetchFeatured()
+
             DispatchQueue.main.async {
+                self._featured = featured
                 self._allApps = allApps
                 self._recentApps = topApps
                 self._banners = validBanners

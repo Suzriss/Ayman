@@ -43,6 +43,28 @@ enum CeresifyStore {
         return (try? JSONDecoder().decode(CategoriesResponse.self, from: data))?.categories ?? []
     }
 
+    // MARK: - التطبيقات المميّزة (بطاقات كبيرة بالرئيسية)
+
+    struct Featured: Decodable, Identifiable, Hashable {
+        var bundleIdentifier: String
+        var title: String
+        var subtitle: String
+        var imageURL: URL?
+
+        var id: String { bundleIdentifier + (imageURL?.absoluteString ?? "") }
+    }
+
+    private struct RepoFeaturedResponse: Decodable {
+        var featured: [Featured]?
+    }
+
+    /// يجيب قائمة المميّزين من repo.json (مع تجاوز الكاش عشان تنعكس تعديلات اللوحة).
+    static func fetchFeatured() async -> [Featured] {
+        guard let url = URL(string: "\(repoURLString)?nocache=1") else { return [] }
+        guard let (data, _) = try? await URLSession.shared.data(from: url) else { return [] }
+        return (try? JSONDecoder().decode(RepoFeaturedResponse.self, from: data))?.featured ?? []
+    }
+
     /// يبني سلايدر الفئات مباشرة من حقل category الموجود فعلياً على تطبيقات
     /// السورس (repo.json)، بدل الاعتماد فقط على /api/categories. تُستخدم
     /// كخطة بديلة لما اللوحة ما ترجّع فئات، وتضمن إن الفئات المعروضة تطابق
