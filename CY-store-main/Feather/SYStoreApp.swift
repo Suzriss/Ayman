@@ -16,23 +16,37 @@ struct SYStoreApp: App {
     let heartbeat = HeartbeatManager.shared
     @StateObject var downloadManager = DownloadManager.shared
     let storage = Storage.shared
-    
-    
+
+    @StateObject var auth = CeresifyAuth.shared
+
     var body: some Scene {
         WindowGroup {
-            VStack {
-                DownloadHeaderView(downloadManager: downloadManager).transition(.move(edge: .top).combined(with: .opacity))
-                VariedTabbarView().environment(\.managedObjectContext, storage.context).onOpenURL(perform: _handleURL).transition(.move(edge: .top).combined(with: .opacity))
+            ZStack {
+                if auth.isChecking && !auth.isAuthorized {
+                    Color.black.ignoresSafeArea()
+                    VStack(spacing: 15) {
+                        ProgressView().progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#00FF9D"))).scaleEffect(1.5)
+                        Text("جاري التحقق من الاشتراك...").foregroundColor(Color(hex: "#00FF9D")).font(.system(size: 14, weight: .medium))
+                    }
+                } else if auth.isAuthorized {
+                    VStack {
+                        DownloadHeaderView(downloadManager: downloadManager).transition(.move(edge: .top).combined(with: .opacity))
+                        VariedTabbarView().environment(\.managedObjectContext, storage.context).onOpenURL(perform: _handleURL).transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    .animation(.smooth, value: downloadManager.manualDownloads.description)
+                    .onReceive(NotificationCenter.default.publisher(for: .heartbeatInvalidHost)) { _ in
+                        DispatchQueue.main.async { UIAlertController.showAlertWithOk(title: "خطأ", message: "ملف الربط غير متوافق.") }
+                    }
+                    .onAppear {
+                        if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) { UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style }
+                        let storedHex = UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#00FF9D"
+                        UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: storedHex))
+                    }
+                } else {
+                    CeresifyAuthView()
+                }
             }
-            .animation(.smooth, value: downloadManager.manualDownloads.description)
-            .onReceive(NotificationCenter.default.publisher(for: .heartbeatInvalidHost)) { _ in
-                DispatchQueue.main.async { UIAlertController.showAlertWithOk(title: "خطأ", message: "ملف الربط غير متوافق.") }
-            }
-            .onAppear {
-                if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) { UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style }
-                let storedHex = UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#00FF9D"
-                UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: storedHex))
-            }
+            .onAppear { auth.start() }
         }
     }
     
