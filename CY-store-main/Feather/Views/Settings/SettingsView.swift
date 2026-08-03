@@ -45,12 +45,6 @@ struct SettingsView: View {
             Form {
                 _aboutSection()
                 
-                Section {
-                    NavigationLink(destination: AppearanceView()) {
-                        Label("المظهر", systemImage: "paintbrush")
-                    }
-                }
-                
                 NBSection("الشهادات") {
                     if let cert = selectedCertificate {
                         CertificatesCellView(cert: cert)
@@ -97,16 +91,11 @@ extension SettingsView {
                 Label {
                     Text("حول التطبيق")
                 } icon: {
-                    // تم تغيير رابط الصورة إلى الرابط الجديد الخاص بك هنا
-                    AsyncImage(url: URL(string: "https://up6.cc/2026/06/178283567306191.png")) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFill().frame(width: 26, height: 26).clipShape(RoundedRectangle(cornerRadius: 6))
-                        } else if phase.error != nil {
-                            Image(systemName: "info.circle.fill").resizable().frame(width: 26, height: 26).foregroundColor(.gray)
-                        } else {
-                            ProgressView().frame(width: 26, height: 26)
-                        }
-                    }
+                    Image("AppLogo")
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 26, height: 26)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
             }
         }

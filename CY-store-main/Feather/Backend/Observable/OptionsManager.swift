@@ -153,9 +153,9 @@ struct Options: Codable, Equatable {
 		experiment_replaceSubstrateWithEllekit: false,
 		
 		// MARK: Post Modifications
-		
-		post_installAppAfterSigned: false,
-		post_deleteAppAfterSigned: false
+
+		post_installAppAfterSigned: true,
+		post_deleteAppAfterSigned: true
 	)
 	
 	// MARK: duplicate values are not recommended!

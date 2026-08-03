@@ -49,7 +49,7 @@ struct HomeView: View {
                     }
                 } else {
                     List {
-                        // MARK: - قسم البنرات الإعلانية (من ipa-black فقط)
+                        // MARK: - قسم البنرات الإعلانية (تُدار من لوحة تحكم Ceresify)
                         if !_banners.isEmpty {
                             Section {
                                 TabView(selection: $_currentBannerIndex) {
@@ -179,9 +179,9 @@ struct HomeView: View {
                     allApps.append((source: source, app: app))
                 }
                 
-                // حماية 2: عزل وقراءة بنرات ipa-black فقط
+                // حماية 2: البنرات تجي من مصدر أحمد المصنّف فقط (تدار من لوحة تحكم Ceresify)
                 if let sourceURLString = rawSource.sourceURL?.absoluteString.lowercased() {
-                    if sourceURLString.contains("ipa-black") {
+                    if sourceURLString == CeresifyStore.repoURLString.lowercased() {
                         if let news = source.news {
                             allBanners.append(contentsOf: news)
                         }

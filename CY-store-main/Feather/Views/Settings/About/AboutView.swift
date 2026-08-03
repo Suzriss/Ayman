@@ -16,7 +16,6 @@ extension AboutView {
 		let name: String
 		let desc: String
 		let link: String
-		let imageUrl: String
 	}
 }
 
@@ -24,40 +23,27 @@ extension AboutView {
 struct AboutView: View {
 	@State private var _credits: [CreditsModel] = [
 		.init(
-			name: "IPA BLACK",
-			desc: "مطور ios",
-			link: "https://t.me/ipa_black",
-			imageUrl: "https://up6.cc/2026/05/177867480259152.jpeg"
-		),
-		.init(
-			name: "حور",
-			desc: "مساعد مطور ومصمم",
-			link: "https://t.me/lh0ss",
-			imageUrl: "https://up6.cc/2026/05/177867480261513.jpeg"
+			name: "ايمن الناصري",
+			desc: "مطور",
+			link: "https://t.me/uussuu"
 		)
 	]
-	
+
 	// MARK: Body
 	var body: some View {
 		NBList("حول التطبيق") {
 			Section {
 				VStack {
-					// صورة التطبيق الجديدة
-					AsyncImage(url: URL(string: "https://up6.cc/2026/06/178283567306191.png")) { phase in
-						if let image = phase.image {
-							image
-								.resizable()
-								.scaledToFill()
-						} else {
-							ProgressView()
-						}
-					}
-					.frame(width: 85, height: 85)
-					.clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-					.padding(.bottom, 8)
-					
-					// اسم التطبيق الجديد
-					Text("ATTACK ستور")
+					// شعار ceresify
+					Image("AppLogo")
+						.resizable()
+						.scaledToFill()
+						.frame(width: 85, height: 85)
+						.clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+						.padding(.bottom, 8)
+
+					// اسم التطبيق
+					Text("ceresify")
 						.font(.largeTitle)
 						.bold()
 						.foregroundStyle(Color.accentColor)
@@ -80,8 +66,7 @@ struct AboutView: View {
 					_credit(
 						name: credit.name,
 						desc: credit.desc,
-						link: credit.link,
-						imageUrl: credit.imageUrl
+						link: credit.link
 					)
 				}
 				.transition(.slide)
@@ -96,23 +81,25 @@ extension AboutView {
 	private func _credit(
 		name: String,
 		desc: String,
-		link: String,
-		imageUrl: String
+		link: String
 	) -> some View {
 		Button {
 			UIApplication.open(link)
 		} label: {
-			HStack {
-				FRIconCellView(
+			HStack(spacing: 18) {
+				Image("AppLogo")
+					.resizable()
+					.scaledToFill()
+					.appIconStyle(size: 45, isCircle: true)
+
+				NBTitleWithSubtitleView(
 					title: name,
 					subtitle: desc,
-					iconUrl: URL(string: imageUrl)!,
-					size: 45,
-					isCircle: true
+					linelimit: 0
 				)
-				
+
 				Spacer() // لدفع السهم إلى الطرف الآخر بشكل مرتب
-				
+
 				Image(systemName: "arrow.up.left") // استخدام سهم يناسب اللغة العربية (من اليمين لليسار)
 					.foregroundColor(.secondary.opacity(0.65))
 			}

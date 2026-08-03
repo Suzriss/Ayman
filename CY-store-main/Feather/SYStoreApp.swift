@@ -38,9 +38,7 @@ struct SYStoreApp: App {
                         DispatchQueue.main.async { UIAlertController.showAlertWithOk(title: "خطأ", message: "ملف الربط غير متوافق.") }
                     }
                     .onAppear {
-                        if let style = UIUserInterfaceStyle(rawValue: UserDefaults.standard.integer(forKey: "Feather.userInterfaceStyle")) { UIApplication.topViewController()?.view.window?.overrideUserInterfaceStyle = style }
-                        let storedHex = UserDefaults.standard.string(forKey: "Feather.userTintColor") ?? "#00FF9D"
-                        UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: storedHex))
+                        UIApplication.topViewController()?.view.window?.tintColor = UIColor(Color(hex: "#B28231"))
                     }
                 } else {
                     CeresifyAuthView()

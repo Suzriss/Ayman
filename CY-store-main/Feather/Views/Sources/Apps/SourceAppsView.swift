@@ -11,13 +11,13 @@ import AltSourceKit
 import NimbleViews
 import UIKit
 
-// MARK: - Extension: View (Enil & Categories)
+// MARK: - Extension: View (Sort)
 extension SourceAppsView {
 	enum SortOption: String, CaseIterable {
 		case `default` = "default"
 		case name
 		case date
-		
+
 		var displayName: String {
 			switch self {
 			case .default:  return "الافتراضي"
@@ -26,36 +26,27 @@ extension SourceAppsView {
 			}
 		}
 	}
-    
-    enum AppCategory: String, CaseIterable {
-        case all = "الكل"
-        case social = "اجتماعي"
-        case entertainment = "ترفيه"
-        case games = "ألعاب"
-        case photoVideo = "صورة فيديو"
-        case developer = "مطور"
-        case lifestyle = "نمط الحياة"
-        case other = "غير ذلك"
-    }
 }
 
 // MARK: - View
 struct SourceAppsView: View {
 	@AppStorage("SYStore.sortOptionRawValue") private var _sortOptionRawValue: String = SortOption.default.rawValue
 	@AppStorage("SYStore.sortAscending") private var _sortAscending: Bool = true
-	
+
 	@State private var _sortOption: SortOption = .default
 	@State private var _selectedRoute: SourceAppRoute?
-    @State private var _selectedCategory: AppCategory = .all
-	
+    @State private var _selectedCategory: CeresifyStore.Category?
+
 	@State var isLoading = true
 	@State var hasLoadedOnce = false
 	@State private var _searchText = ""
 
 	var object: [AltSource]
+	/// فئات مصدر أحمد المُدارة من لوحة التحكم (سلايدر). فاضية = بدون فئات (باقي السورسات).
+	var categories: [CeresifyStore.Category] = []
 	@ObservedObject var viewModel: SourcesViewModel
 	@State private var _sources: [ASRepository]?
-	
+
 	// MARK: Body
 	var body: some View {
 		ZStack {
@@ -68,7 +59,8 @@ struct SourceAppsView: View {
 					searchText: $_searchText,
 					sortOption: $_sortOption,
 					sortAscending: $_sortAscending,
-                    selectedCategory: $_selectedCategory, // تمرير التصنيف
+					categories: categories,
+					selectedCategory: $_selectedCategory,
 					onSelect: {self._selectedRoute = $0}
 				)
 				.ignoresSafeArea()
@@ -81,12 +73,10 @@ struct SourceAppsView: View {
 		.searchable(text: $_searchText, placement: .platform(), prompt: "ابحث في التطبيقات...")
 		.toolbar {
 			NBToolbarMenu(
-				systemImage: "line.3.horizontal.decrease.circle", // أيقونة فلتر احترافية
+				systemImage: "arrow.up.arrow.down.circle",
 				style: .icon,
 				placement: .topBarTrailing
 			) {
-				_categoryActions()
-                Divider()
 				_sortActions()
 			}
 		}
@@ -107,10 +97,10 @@ struct SourceAppsView: View {
 			SourceAppsDetailView(source: route.source, app: route.app)
 		}
 	}
-	
+
 	private func _load() {
 		isLoading = true
-		
+
 		Task {
 			let loadedSources = object.compactMap { viewModel.sources[$0] }
 			_sources = loadedSources
@@ -119,7 +109,7 @@ struct SourceAppsView: View {
 			}
 		}
 	}
-	
+
 	struct SourceAppRoute: Identifiable, Hashable {
 		let source: ASRepository
 		let app: ASRepository.App
@@ -127,28 +117,8 @@ struct SourceAppsView: View {
 	}
 }
 
-// MARK: - Extension: View (Sort & Category)
+// MARK: - Extension: View (Sort)
 extension SourceAppsView {
-    
-    @ViewBuilder
-    private func _categoryActions() -> some View {
-        Section("التصنيفات") {
-            ForEach(AppCategory.allCases, id: \.self) { category in
-                Button {
-                    _selectedCategory = category
-                } label: {
-                    HStack {
-                        Text(category.rawValue)
-                        Spacer()
-                        if _selectedCategory == category {
-                            Image(systemName: "checkmark")
-                        }
-                    }
-                }
-            }
-        }
-    }
-
 	@ViewBuilder
 	private func _sortActions() -> some View {
 		Section("ترتيب حسب") {
@@ -157,7 +127,7 @@ extension SourceAppsView {
 			}
 		}
 	}
-	
+
 	private func _sortButton(for option: SortOption) -> some View {
 		Button {
 			if _sortOption == option {
