@@ -73,11 +73,20 @@ struct SourcesView: View {
     /// يجيب فئات لوحة التحكم أولاً، وإذا رجّعت فاضية (اللوحة ما فيها فئات
     /// مُدارة بعد) يبني الفئات مباشرة من تقسيمات سورس أحمد نفسه.
     private func _loadCategories() async {
-        let apiCategories = await CeresifyStore.fetchCategories()
-        if !apiCategories.isEmpty {
-            _categories = apiCategories
-        } else if let ahmad = _ahmadSource, let apps = viewModel.sources[ahmad]?.apps {
-            _categories = CeresifyStore.categories(from: apps)
+        guard let ahmad = _ahmadSource, let apps = viewModel.sources[ahmad]?.apps else { return }
+        let appCategories = CeresifyStore.categories(from: apps)
+        guard !appCategories.isEmpty else { return }
+
+        let panel = await CeresifyStore.fetchCategories()
+        let byName = Dictionary(panel.compactMap { c in c.originalName.map { ($0, c) } },
+                                uniquingKeysWith: { first, _ in first })
+
+        _categories = appCategories.map { cat in
+            guard let match = byName[cat.originalName ?? cat.displayName] else { return cat }
+            var enriched = cat
+            enriched.displayName = match.displayName
+            enriched.icon = match.icon
+            return enriched
         }
     }
 

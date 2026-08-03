@@ -103,7 +103,8 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 
 	private var _cachedSortedApps: [(source: ASRepository, app: ASRepository.App)] = []
 	weak var uiTableView: UITableView?
-	private weak var _headerHostingController: UIHostingController<AnyView>?
+	private var _headerHostingController: UIHostingController<AnyView>?
+	private weak var _headerTableView: UITableView?
 
 	private var _allAppsWithSource: [(source: ASRepository, app: ASRepository.App)] {
 		sources.flatMap { source in source.apps.map { (source: source, app: $0) } }
@@ -220,6 +221,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	// MARK: Header (banner + سلايدر الفئات)
 
 	func setupHeader(for tableView: UITableView) {
+		_headerTableView = tableView
 		guard
 			let firstSource = sources.first,
 			sources.count == 1
@@ -243,9 +245,28 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	}
 
 	/// يحدّث محتوى الهيدر بدون إعادة إنشائه (يمنع قفزة السكرول عند تبديل الفئة).
+	/// إذا كان الهيدر لسه ما انبنى (مثلا الفئات وصلت متأخرة بعد أول تحميل)،
+	/// نبنيه هنا من الصفر بدل ما نتجاهل التحديث ويبقى السلايدر مخفي.
 	func refreshHeader() {
-		guard let hc = _headerHostingController, let firstSource = sources.first, sources.count == 1 else { return }
-		hc.rootView = _headerContent(news: firstSource.news ?? [])
+		guard let firstSource = sources.first, sources.count == 1 else { return }
+		let news = firstSource.news ?? []
+
+		guard let hc = _headerHostingController else {
+			if let tableView = _headerTableView {
+				setupHeader(for: tableView)
+			}
+			return
+		}
+
+		hc.rootView = _headerContent(news: news)
+
+		if let tableView = _headerTableView {
+			let height: CGFloat = (news.isEmpty ? 0 : 161) + (categories.isEmpty ? 0 : 52)
+			hc.view.frame = CGRect(origin: .zero, size: CGSize(width: tableView.bounds.width, height: height))
+			DispatchQueue.main.async {
+				tableView.tableHeaderView = hc.view
+			}
+		}
 	}
 
 	private func _headerContent(news: [ASRepository.News]) -> AnyView {
