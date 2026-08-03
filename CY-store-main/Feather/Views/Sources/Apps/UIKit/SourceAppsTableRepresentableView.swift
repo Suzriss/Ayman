@@ -165,7 +165,12 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 			_groupedAppsByDate = [:]
 			_groupedAppsByNameFirstLetter = [:]
 			_sortedSectionTitles = []
-			return sortAscending ? filtered : filtered.reversed()
+			// الترتيب الافتراضي: من آخر تحديث تنازلياً (الأحدث أولاً)
+			return filtered.sorted {
+				let d1 = $0.app.currentDate?.date ?? .distantPast
+				let d2 = $1.app.currentDate?.date ?? .distantPast
+				return d1 > d2
+			}
 		case .date:
 			let sorted = filtered.sorted {
 				let d1 = $0.app.currentDate?.date ?? .distantPast

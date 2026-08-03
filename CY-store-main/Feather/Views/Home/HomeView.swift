@@ -16,12 +16,10 @@ struct HomeView: View {
     @StateObject var viewModel = SourcesViewModel.shared
     
     @State private var _allApps: [(source: ASRepository, app: ASRepository.App)] = []
-    @State private var _recentApps: [(source: ASRepository, app: ASRepository.App)] = []
     @State private var _banners: [ASRepository.News] = []
     @State private var _featured: [CeresifyStore.Featured] = []
     @State private var _selectedRoute: SourceAppRoute?
     @State private var isLoading = true
-    @State private var _recentAppsCount = 0
     @State private var _currentBannerIndex = 0
     
     private let bannerTimer = Timer.publish(every: 3.5, on: .main, in: .common).autoconnect()
@@ -35,9 +33,9 @@ struct HomeView: View {
     var body: some View {
         NBNavigationView("الرئيسية") {
             ZStack {
-                if isLoading && _recentApps.isEmpty && _banners.isEmpty && _featured.isEmpty {
+                if isLoading && _banners.isEmpty && _featured.isEmpty {
                     ProgressView("جاري التحديث...")
-                } else if _recentApps.isEmpty && _banners.isEmpty && _featured.isEmpty {
+                } else if _banners.isEmpty && _featured.isEmpty {
                     if #available(iOS 17, *) {
                         ContentUnavailableView {
                             Label("لا توجد تطبيقات", systemImage: "tray.fill")
@@ -104,36 +102,6 @@ struct HomeView: View {
                                         }
                                     }
                                 }
-                            }
-                        }
-
-                        // MARK: - قسم أحدث التطبيقات فرز حسب الإضافة مع العدد
-                        if !_recentApps.isEmpty {
-                            Section {
-                                ForEach(_recentApps, id: \.app.currentUniqueId) { item in
-                                    Button {
-                                        _selectedRoute = SourceAppRoute(source: item.source, app: item.app)
-                                    } label: {
-                                        SourceAppsCellView(source: item.source, app: item.app)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            } header: {
-                                HStack(spacing: 6) {
-                                    Text("أحدث الإضافات")
-                                        .font(.title3.bold())
-                                        .foregroundColor(.primary)
-                                    
-                                    Text("\(_recentAppsCount)")
-                                        .font(.system(size: 14, weight: .bold, design: .rounded))
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 2)
-                                        .background(Color.accentColor.opacity(0.15))
-                                        .foregroundColor(.accentColor)
-                                        .clipShape(Capsule())
-                                }
-                                .padding(.top, 5)
-                                .textCase(nil)
                             }
                         }
                     }
@@ -225,14 +193,6 @@ struct HomeView: View {
                 }
             }
 
-            // فرز زمني دقيق تصاعدياً حسب الأحدث
-            allApps.sort { firstItem, secondItem in
-                let firstDate = firstItem.app.currentDate?.date ?? .distantPast
-                let secondDate = secondItem.app.currentDate?.date ?? .distantPast
-                return firstDate > secondDate
-            }
-
-            let topApps = Array(allApps.prefix(25))
             let validBanners = allBanners.filter { $0.imageURL != nil }
 
             let featured = await CeresifyStore.fetchFeatured()
@@ -240,10 +200,8 @@ struct HomeView: View {
             DispatchQueue.main.async {
                 self._featured = featured
                 self._allApps = allApps
-                self._recentApps = topApps
                 self._banners = validBanners
-                self._recentAppsCount = topApps.count
-                
+
                 if self._currentBannerIndex >= validBanners.count {
                     self._currentBannerIndex = 0
                 }

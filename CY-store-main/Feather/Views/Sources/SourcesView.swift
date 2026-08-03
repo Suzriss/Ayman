@@ -77,6 +77,10 @@ struct SourcesView: View {
         let appCategories = CeresifyStore.categories(from: apps)
         guard !appCategories.isEmpty else { return }
 
+        // نعرض الفئات المبنية محلياً فوراً بدل انتظار رد الشبكة، وبعدين نغنيها
+        // بالاسم/الأيقونة من اللوحة إذا توفرت دون ما نأخر ظهور السلايدر.
+        _categories = appCategories
+
         let panel = await CeresifyStore.fetchCategories()
         let byName = Dictionary(panel.compactMap { c in c.originalName.map { ($0, c) } },
                                 uniquingKeysWith: { first, _ in first })

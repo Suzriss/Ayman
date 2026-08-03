@@ -78,8 +78,47 @@ struct SettingsView: View {
                 } footer: {
                     Text("إعادة تعيين الشهادات والتطبيقات والمحتويات العامة.")
                 }
+
+                _deviceInfoSection()
             }
         }
+    }
+}
+
+// MARK: - Extension: View (معلومات الجهاز)
+extension SettingsView {
+    @ViewBuilder
+    private func _deviceInfoSection() -> some View {
+        NBSection("معلومات الجهاز") {
+            _infoRow(title: "الاسم", value: UIDevice.current.name)
+            _infoRow(title: "الطراز", value: UIDevice.current.exactModelName)
+            _infoRow(title: "نظام التشغيل", value: "\(UIDevice.current.systemName) \(UIDevice.current.systemVersion)")
+            _infoRow(title: "المساحة المتوفرة", value: _availableStorage())
+            _infoRow(title: "إصدار التطبيق", value: _appVersion())
+        }
+    }
+
+    private func _infoRow(title: String, value: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func _availableStorage() -> String {
+        guard
+            let values = try? URL(fileURLWithPath: NSHomeDirectory()).resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey]),
+            let capacity = values.volumeAvailableCapacityForImportantUsage
+        else { return "—" }
+        return ByteCountFormatter.string(fromByteCount: capacity, countStyle: .file)
+    }
+
+    private func _appVersion() -> String {
+        let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"
+        return "\(version) (\(build))"
     }
 }
 
