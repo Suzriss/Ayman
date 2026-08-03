@@ -23,19 +23,17 @@ jobs:
       - name: Fetch dependencies (Zsign + IDeviceKitten)
         run: |
           rm -rf Zsign IDeviceKitten
-          git clone --depth 1 --branch package https://github.com/khcrysalis/Zsign-Package Zsign
-          git clone --depth 1 https://github.com/khcrysalis/IDeviceKit IDeviceKitten
 
-      - name: DEBUG - Show Zsign Package.swift
-        run: |
-          echo "========== Zsign/Package.swift =========="
-          cat Zsign/Package.swift || echo "لا يوجد Package.swift!"
-          echo ""
-          echo "========== محتويات Zsign =========="
-          ls -la Zsign
-          echo ""
-          echo "========== أسماء المنتجات (products) =========="
-          grep -A2 -i "products\|\.library\|name:" Zsign/Package.swift | head -30
+          # ملاحظة: نستخدم كوميت محدد من فرع package بدل آخر تحديث،
+          # لأن آخر تحديث غيّر اسم المنتج (Zsign بدل ZsignSwift) وتوقيع
+          # دالة sign()، مما يكسر التوافق مع كود Feather. هذا الكوميت هو
+          # نفسه الذي يستخدمه مشروع Feather الأصلي كـ submodule مثبت.
+          git init -q Zsign
+          git -C Zsign remote add origin https://github.com/khcrysalis/Zsign-Package
+          git -C Zsign fetch --depth 1 origin 6ffe703df73ef9069adacdbb19d571f11a69a801
+          git -C Zsign checkout -q FETCH_HEAD
+
+          git clone --depth 1 https://github.com/khcrysalis/IDeviceKit IDeviceKitten
 
       - name: Ensure license files exist
         run: |
