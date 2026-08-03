@@ -59,14 +59,25 @@ struct SourcesView: View {
         .task(id: Array(_sources)) {
             await viewModel.fetchSources(_sources)
             _importDefaultSources() // جلب المصادر تلقائياً
-            _categories = await CeresifyStore.fetchCategories()
+            await _loadCategories()
         }
         .refreshable {
             await viewModel.fetchSources(_sources, refresh: true)
-            _categories = await CeresifyStore.fetchCategories()
+            await _loadCategories()
         }
         .sheet(isPresented: $_isOtherSourcesPresenting) {
             OtherSourcesListView(sources: _otherSources, viewModel: viewModel)
+        }
+    }
+
+    /// يجيب فئات لوحة التحكم أولاً، وإذا رجّعت فاضية (اللوحة ما فيها فئات
+    /// مُدارة بعد) يبني الفئات مباشرة من تقسيمات سورس أحمد نفسه.
+    private func _loadCategories() async {
+        let apiCategories = await CeresifyStore.fetchCategories()
+        if !apiCategories.isEmpty {
+            _categories = apiCategories
+        } else if let ahmad = _ahmadSource, let apps = viewModel.sources[ahmad]?.apps {
+            _categories = CeresifyStore.categories(from: apps)
         }
     }
 
