@@ -167,24 +167,33 @@ struct HomeView: View {
     // MARK: - أقسام مفصولة (لتخفيف الحِمل عن مترجم SwiftUI)
     @ViewBuilder
     private var _featuredSection: some View {
-                        // MARK: - قسم التطبيقات المميّزة (بطاقات كبيرة تُدار من اللوحة)
-                        if !_featured.isEmpty {
-                            Section {
-                                ForEach(_featured) { item in
-                                    Button {
-                                        if let target = _allApps.first(where: { $0.app.bundleIdentifier == item.bundleIdentifier }) {
-                                            _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
-                                        }
-                                    } label: {
-                                        FeaturedCardView(item: item)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
-                                }
-                            }
-                        }
+        // MARK: - قسم التطبيقات المميّزة (بطاقات كبيرة تُدار من اللوحة)
+        if !_featured.isEmpty {
+            Section {
+                ForEach(_featured) { item in
+                    _featuredRow(item)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func _featuredRow(_ item: CeresifyStore.Featured) -> some View {
+        Button {
+            _selectFeatured(item)
+        } label: {
+            FeaturedCardView(item: item)
+        }
+        .buttonStyle(.plain)
+        .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
+    }
+
+    private func _selectFeatured(_ item: CeresifyStore.Featured) {
+        if let target = _allApps.first(where: { $0.app.bundleIdentifier == item.bundleIdentifier }) {
+            _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
+        }
     }
 
     // MARK: - جلب البيانات الآمن
