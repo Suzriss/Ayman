@@ -50,24 +50,7 @@ struct HomeView: View {
                     }
                 } else {
                     List {
-                        // MARK: - قسم التطبيقات المميّزة (بطاقات كبيرة تُدار من اللوحة)
-                        if !_featured.isEmpty {
-                            Section {
-                                ForEach(_featured) { item in
-                                    Button {
-                                        if let target = _allApps.first(where: { $0.app.bundleIdentifier == item.bundleIdentifier }) {
-                                            _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
-                                        }
-                                    } label: {
-                                        FeaturedCardView(item: item)
-                                    }
-                                    .buttonStyle(.plain)
-                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                    .listRowBackground(Color.clear)
-                                    .listRowSeparator(.hidden)
-                                }
-                            }
-                        }
+                        _featuredSection
 
                         // MARK: - قسم البنرات الإعلانية (تُدار من لوحة تحكم Ceresify)
                         if !_banners.isEmpty {
@@ -178,6 +161,30 @@ struct HomeView: View {
             }
             _loadData()
         }
+    }
+
+
+    // MARK: - أقسام مفصولة (لتخفيف الحِمل عن مترجم SwiftUI)
+    @ViewBuilder
+    private var _featuredSection: some View {
+                        // MARK: - قسم التطبيقات المميّزة (بطاقات كبيرة تُدار من اللوحة)
+                        if !_featured.isEmpty {
+                            Section {
+                                ForEach(_featured) { item in
+                                    Button {
+                                        if let target = _allApps.first(where: { $0.app.bundleIdentifier == item.bundleIdentifier }) {
+                                            _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
+                                        }
+                                    } label: {
+                                        FeaturedCardView(item: item)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
+                                }
+                            }
+                        }
     }
 
     // MARK: - جلب البيانات الآمن
