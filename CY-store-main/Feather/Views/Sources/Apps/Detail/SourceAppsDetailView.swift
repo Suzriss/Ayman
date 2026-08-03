@@ -71,10 +71,18 @@ struct SourceAppsDetailView: View {
 					NBSection("الصور") {
 						_screenshots(screenshotURLs: screenshotURLs)
 					}
-                    
+
 					Divider()
 				}
-                
+
+				if let description = app.description ?? app.localizedDescription, !description.isEmpty {
+					NBSection("الوصف") {
+						ExpandableText(text: description, lineLimit: 4)
+					}
+
+					Divider()
+				}
+
 				NBSection("المعلومات") {
 					VStack(spacing: 12) {
 						if let size = app.size {
