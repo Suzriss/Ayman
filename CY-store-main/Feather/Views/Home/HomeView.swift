@@ -191,7 +191,7 @@ struct HomeView: View {
     }
 
     private func _selectFeatured(_ item: CeresifyStore.Featured) {
-        if let target = _allApps.first(where: { $0.app.bundleIdentifier == item.bundleIdentifier }) {
+        if let target = _allApps.first(where: { $0.app.id == item.bundleIdentifier }) {
             _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
         }
     }
