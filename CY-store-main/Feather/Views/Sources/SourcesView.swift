@@ -15,6 +15,7 @@ import NimbleViews
 struct SourcesView: View {
     @StateObject var viewModel = SourcesViewModel.shared
     @State private var _categories: [CeresifyStore.Category] = []
+    @State private var _didLoadCategories = false
     @State private var _isOtherSourcesPresenting = false
 
     @FetchRequest(
@@ -59,11 +60,15 @@ struct SourcesView: View {
         .task(id: Array(_sources)) {
             await viewModel.fetchSources(_sources)
             _importDefaultSources() // جلب المصادر تلقائياً
-            await _loadCategories()
+            if !_didLoadCategories {
+                await _loadCategories()
+                _didLoadCategories = true
+            }
         }
         .refreshable {
             await viewModel.fetchSources(_sources, refresh: true)
             await _loadCategories()
+            _didLoadCategories = true
         }
         .sheet(isPresented: $_isOtherSourcesPresenting) {
             OtherSourcesListView(sources: _otherSources, viewModel: viewModel)

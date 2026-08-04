@@ -165,7 +165,10 @@ struct HomeView: View {
     }
 
     // MARK: - جلب البيانات الآمن
-    private func _loadData() {
+    private func _loadData(force: Bool = false) {
+        // نحمّل مرة وحدة فقط — التبديل بين الخانات ما يعيد الجلب.
+        // (force = true عند السحب للتحديث)
+        guard force || !hasLoadedOnce else { return }
         isLoading = true
         Task {
             let rawSources = _sources
@@ -198,6 +201,7 @@ struct HomeView: View {
             let featured = await CeresifyStore.fetchFeatured()
 
             DispatchQueue.main.async {
+                self.hasLoadedOnce = true
                 self._featured = featured
                 self._allApps = allApps
                 self._banners = validBanners
