@@ -58,48 +58,47 @@ struct SourcesView: View {
             }
         }
         .task(id: Array(_sources)) {
-            await viewModel.fetchSources(_sources)
             _importDefaultSources() // جلب المصادر تلقائياً
+            // الفئات ما تنتظر تنزيل السورسات كاملة (فيها ريبو أحمد ١٢ ميجا) —
+            // تجيب نفسها بشكل مستقل وسريع من اللوحة، وتظهر قبل التطبيقات.
+            async let sourcesFetch: () = viewModel.fetchSources(_sources)
             if !_didLoadCategories {
                 await _loadCategories()
                 _didLoadCategories = true
             }
+            await sourcesFetch
         }
         .refreshable {
             if _ahmadSource != nil {
                 await CeresifyPagedAppsStore.shared.refresh()
             }
-            await viewModel.fetchSources(_sources, refresh: true)
+            async let sourcesFetch: () = viewModel.fetchSources(_sources, refresh: true)
             await _loadCategories()
             _didLoadCategories = true
+            await sourcesFetch
         }
         .sheet(isPresented: $_isOtherSourcesPresenting) {
             OtherSourcesListView(sources: _otherSources, viewModel: viewModel)
         }
     }
 
-    /// يجيب فئات لوحة التحكم أولاً، وإذا رجّعت فاضية (اللوحة ما فيها فئات
-    /// مُدارة بعد) يبني الفئات مباشرة من تقسيمات سورس أحمد نفسه.
+    /// يجيب فئات لوحة التحكم أولاً — رد صغير وسريع مستقل عن تنزيل السورسات
+    /// كاملة، عشان السلايدر يظهر قبل ما تجهز التطبيقات. إذا اللوحة رجّعت
+    /// فاضية (ما فيها فئات مُدارة بعد) نبنيها من التطبيقات المحمّلة عبر
+    /// المسار المجزّأ السريع (بدون انتظار تنزيل ريبو أحمد كامل).
     private func _loadCategories() async {
-        guard let ahmad = _ahmadSource, let apps = viewModel.sources[ahmad]?.apps else { return }
-        let appCategories = CeresifyStore.categories(from: apps)
-        guard !appCategories.isEmpty else { return }
-
-        // نعرض الفئات المبنية محلياً فوراً بدل انتظار رد الشبكة، وبعدين نغنيها
-        // بالاسم/الأيقونة من اللوحة إذا توفرت دون ما نأخر ظهور السلايدر.
-        _categories = appCategories
+        guard _ahmadSource != nil else { return }
 
         let panel = await CeresifyStore.fetchCategories()
-        let byName = Dictionary(panel.compactMap { c in c.originalName.map { ($0, c) } },
-                                uniquingKeysWith: { first, _ in first })
-
-        _categories = appCategories.map { cat in
-            guard let match = byName[cat.originalName ?? cat.displayName] else { return cat }
-            var enriched = cat
-            enriched.displayName = match.displayName
-            enriched.icon = match.icon
-            return enriched
+        if !panel.isEmpty {
+            _categories = panel
+            return
         }
+
+        await CeresifyPagedAppsStore.shared.loadInitialIfNeeded()
+        let appCategories = CeresifyStore.categories(from: CeresifyPagedAppsStore.shared.apps)
+        guard !appCategories.isEmpty else { return }
+        _categories = appCategories
     }
 
     // MARK: - دالة استيراد المصادر
