@@ -42,7 +42,7 @@ struct SourcesView: View {
         NBNavigationView("التطبيقات") {
             Group {
                 if let ahmad = _ahmadSource {
-                    SourceAppsView(object: [ahmad], categories: _categories, viewModel: viewModel)
+                    SourceAppsView(object: [ahmad], categories: _categories, isCeresifySource: true, viewModel: viewModel)
                 } else {
                     // لسه سورس أحمد ما انسحب أو انحذف — نعرض كل السورسات المتوفرة مؤقتاً بدون فئات
                     SourceAppsView(object: Array(_sources), viewModel: viewModel)
@@ -66,6 +66,9 @@ struct SourcesView: View {
             }
         }
         .refreshable {
+            if _ahmadSource != nil {
+                await CeresifyPagedAppsStore.shared.refresh()
+            }
             await viewModel.fetchSources(_sources, refresh: true)
             await _loadCategories()
             _didLoadCategories = true
@@ -113,7 +116,7 @@ struct SourcesView: View {
             // التحقق مما إذا كان السورس موجوداً مسبقاً لمنع التكرار
             let exists = _sources.contains { $0.sourceURL?.absoluteString.lowercased() == source.lowercased() }
             if !exists {
-                FR.handleSource(source) { }
+                FR.handleSource(source, silent: true) { }
             }
         }
     }

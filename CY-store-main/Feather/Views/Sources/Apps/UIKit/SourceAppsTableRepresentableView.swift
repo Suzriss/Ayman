@@ -19,6 +19,12 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 	var categories: [CeresifyStore.Category]
 	@Binding var selectedCategory: CeresifyStore.Category?
 	var onSelect: (SourceAppsView.SourceAppRoute) -> Void
+	/// يُستدعى لما المستخدم يقرب من نهاية القائمة المحمّلة (infinite scroll).
+	var onLoadMore: (() -> Void)? = nil
+	/// يُستدعى لما المستخدم يسحب للتحديث (Pull to refresh).
+	var onRefresh: (() -> Void)? = nil
+	/// حالة التحديث الفعلية — تُنهي أنيميشن UIRefreshControl لما تصير false.
+	var isRefreshing: Bool = false
 
 	func makeUIView(context: Context) -> UITableView {
 		let tableView = UITableView(frame: .zero, style: .plain)
@@ -26,6 +32,12 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 		tableView.dataSource = context.coordinator
 		tableView.register(UITableViewCell.self, forCellReuseIdentifier: "AppCell")
 		tableView.register(UITableViewHeaderFooterView.self, forHeaderFooterViewReuseIdentifier: "SectionHeader")
+
+		if onRefresh != nil {
+			let refreshControl = UIRefreshControl()
+			refreshControl.addTarget(context.coordinator, action: #selector(Coordinator.handlePullToRefresh), for: .valueChanged)
+			tableView.refreshControl = refreshControl
+		}
 
 		// تعديل التوافق لـ iOS 15
 		if #available(iOS 16, *) {
@@ -62,6 +74,11 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 		context.coordinator.categories = categories
 		context.coordinator.selectedCategory = selectedCategory
 		context.coordinator.selectedCategoryBinding = $selectedCategory
+		context.coordinator.onLoadMore = onLoadMore
+
+		if !isRefreshing, tableView.refreshControl?.isRefreshing == true {
+			tableView.refreshControl?.endRefreshing()
+		}
 
 		if categoryChanged || categoriesChanged {
 			context.coordinator.refreshHeader()
@@ -81,7 +98,9 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 			categories: categories,
 			selectedCategory: selectedCategory,
 			selectedCategoryBinding: $selectedCategory,
-			onSelect: onSelect
+			onSelect: onSelect,
+			onLoadMore: onLoadMore,
+			onRefresh: onRefresh
 		)
 	}
 }
@@ -96,6 +115,8 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	var selectedCategory: CeresifyStore.Category?
 	var selectedCategoryBinding: Binding<CeresifyStore.Category?>
 	let onSelect: (SourceAppsView.SourceAppRoute) -> Void
+	var onLoadMore: (() -> Void)?
+	let onRefresh: (() -> Void)?
 
 	private var _groupedAppsByNameFirstLetter: [String: [(source: ASRepository, app: ASRepository.App)]] = [:]
 	private var _groupedAppsByDate: [String: [(source: ASRepository, app: ASRepository.App)]] = [:]
@@ -126,7 +147,9 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 		categories: [CeresifyStore.Category],
 		selectedCategory: CeresifyStore.Category?,
 		selectedCategoryBinding: Binding<CeresifyStore.Category?>,
-		onSelect: @escaping (SourceAppsView.SourceAppRoute) -> Void
+		onSelect: @escaping (SourceAppsView.SourceAppRoute) -> Void,
+		onLoadMore: (() -> Void)? = nil,
+		onRefresh: (() -> Void)? = nil
 	) {
 		self.sources = sources
 		self.searchText = searchText
@@ -136,6 +159,8 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 		self.selectedCategory = selectedCategory
 		self.selectedCategoryBinding = selectedCategoryBinding
 		self.onSelect = onSelect
+		self.onLoadMore = onLoadMore
+		self.onRefresh = onRefresh
 		super.init()
 
 		if sortOption != .default {
@@ -351,6 +376,27 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 		}
 
 		onSelect(SourceAppsView.SourceAppRoute(source: entry.source, app: entry.app))
+	}
+
+	/// infinite scroll: نطلب الصفحة التالية لما المستخدم يوصل قريب من آخر صف محمّل
+	/// (بغض النظر عن الترتيب المختار — نتحقق من موقع الصف الفعلي بقائمة كل التطبيقات).
+	func tableView(_ tableView: UITableView, willDisplay cell: UITableViewCell, forRowAt indexPath: IndexPath) {
+		guard let onLoadMore, !_sortedApps.isEmpty else { return }
+
+		let entry: (source: ASRepository, app: ASRepository.App)
+		switch sortOption {
+		case .default: entry = _sortedApps[indexPath.row]
+		case .name: guard let e = _groupedAppsByNameFirstLetter[_sortedSectionTitles[indexPath.section]]?[indexPath.row] else { return }; entry = e
+		case .date: guard let e = _groupedAppsByDate[_sortedSectionTitles[indexPath.section]]?[indexPath.row] else { return }; entry = e
+		}
+
+		guard let flatIndex = _sortedApps.firstIndex(where: { $0.app.currentUniqueId == entry.app.currentUniqueId }) else { return }
+		guard flatIndex >= _sortedApps.count - 15 else { return }
+		onLoadMore()
+	}
+
+	@objc func handlePullToRefresh() {
+		onRefresh?()
 	}
 
 	func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {

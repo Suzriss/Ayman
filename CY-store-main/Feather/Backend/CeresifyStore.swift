@@ -59,10 +59,44 @@ enum CeresifyStore {
     }
 
     /// يجيب قائمة المميّزين من repo.json (مع تجاوز الكاش عشان تنعكس تعديلات اللوحة).
+    /// تُستخدم كخطة بديلة فقط — المسار السريع يجيب المميّزين من ?page=1
+    /// عبر fetchPagedApps بدل تنزيل repo.json كامل.
     static func fetchFeatured() async -> [Featured] {
         guard let url = URL(string: "\(repoURLString)?nocache=1") else { return [] }
         guard let (data, _) = try? await URLSession.shared.data(from: url) else { return [] }
         return (try? JSONDecoder().decode(RepoFeaturedResponse.self, from: data))?.featured ?? []
+    }
+
+    // MARK: - تحميل التطبيقات صفحة صفحة (بدل تنزيل repo.json الكامل دفعة وحدة)
+
+    struct PagedApps: Decodable {
+        var apps: [ASRepository.App]
+        var page: Int
+        var limit: Int
+        var total: Int
+        var hasMore: Bool
+        /// موجودة فقط بردّ الصفحة الأولى.
+        var featured: [Featured]?
+    }
+
+    /// يجيب صفحة وحدة من كتالوج التطبيقات عبر endpoint الـ pagination الجاهز
+    /// بالسيرفر. هذا يبدّل تنزيل repo.json الكامل (12 ميجا / 8500 تطبيق) بجلب
+    /// تدريجي — أول فتحة تجيب 100 تطبيق بس، والباقي يجي مع السكرول.
+    static func fetchPagedApps(page: Int, limit: Int = 100, category: String? = nil) async -> PagedApps? {
+        var components = URLComponents(string: "\(Ceresify.baseURL)/api/apps/paged")
+        var items = [
+            URLQueryItem(name: "page", value: String(page)),
+            URLQueryItem(name: "limit", value: String(limit))
+        ]
+        if let category, !category.isEmpty {
+            items.append(URLQueryItem(name: "category", value: category))
+        }
+        components?.queryItems = items
+
+        guard let url = components?.url else { return nil }
+        guard let (data, response) = try? await URLSession.shared.data(from: url) else { return nil }
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else { return nil }
+        return try? JSONDecoder().decode(PagedApps.self, from: data)
     }
 
     /// يبني سلايدر الفئات مباشرة من حقل category الموجود فعلياً على تطبيقات

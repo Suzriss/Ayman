@@ -44,13 +44,19 @@ struct SourceAppsView: View {
 	var object: [AltSource]
 	/// فئات مصدر أحمد المُدارة من لوحة التحكم (سلايدر). فاضية = بدون فئات (باقي السورسات).
 	var categories: [CeresifyStore.Category] = []
+	/// true لمصدر أحمد المصنّف — يفعّل التحميل المجزّأ (pagination) بدل انتظار
+	/// تنزيل السورس كامل. أي سورس ثاني يبقى على المسار القديم.
+	var isCeresifySource: Bool = false
 	@ObservedObject var viewModel: SourcesViewModel
+	@ObservedObject private var _pagedStore = CeresifyPagedAppsStore.shared
 	@State private var _sources: [ASRepository]?
 
 	// MARK: Body
 	var body: some View {
 		ZStack {
-			if
+			if isCeresifySource {
+				_pagedContent
+			} else if
 				let _sources,
 				!_sources.isEmpty
 			{
@@ -65,7 +71,7 @@ struct SourceAppsView: View {
 				)
 				.ignoresSafeArea()
 			} else {
-				ProgressView("جاري تحميل التطبيقات...") // تعريب نص التحميل
+				CeresifyLoaderView()
 			}
 		}
         // تثبيت العنوان ليكون "التطبيقات" دائماً بدلاً من عرض عدد المصادر
@@ -81,6 +87,9 @@ struct SourceAppsView: View {
 			}
 		}
 		.onAppear {
+			if isCeresifySource {
+				Task { await _pagedStore.loadInitialIfNeeded() }
+			}
 			if !hasLoadedOnce, viewModel.isFinished {
 				_load()
 				hasLoadedOnce = true
@@ -93,9 +102,59 @@ struct SourceAppsView: View {
 		.onChange(of: _sortOption) { newValue in
 			_sortOptionRawValue = newValue.rawValue
 		}
+        .onChange(of: _selectedCategory) { newValue in
+            guard isCeresifySource else { return }
+            // الفئات المخصّصة (isCustom) مبنية على قائمة bundleId يدوية، والسيرفر
+            // ما يعرف يفلترها — نرجّع فلتر السيرفر لـ "الكل" ونخلي الفلترة
+            // المحلية بـ SourceAppsTableRepresentableView تسوي الشغل.
+            let serverCategory = (newValue?.isCustom == true) ? nil : newValue?.originalName
+            Task { await _pagedStore.setCategory(serverCategory) }
+        }
 		.navigationDestinationIfAvailable(item: $_selectedRoute) { route in
 			SourceAppsDetailView(source: route.source, app: route.app)
 		}
+	}
+
+	/// محتوى مصدر أحمد المصنّف — مبني من التحميل المجزّأ. لو فشل (مثلاً السيرفر
+	/// مو جاهز بعد)، نرجع تلقائياً لمسار التحميل الكامل القديم كخطة بديلة آمنة.
+	@ViewBuilder
+	private var _pagedContent: some View {
+		if !_pagedStore.apps.isEmpty {
+			SourceAppsTableRepresentableView(
+				sources: [_pagedRepository],
+				searchText: $_searchText,
+				sortOption: $_sortOption,
+				sortAscending: $_sortAscending,
+				categories: categories,
+				selectedCategory: $_selectedCategory,
+				onSelect: { self._selectedRoute = $0 },
+				onLoadMore: { Task { await _pagedStore.loadNextPageIfNeeded() } },
+				onRefresh: { Task { await _pagedStore.refresh() } },
+				isRefreshing: _pagedStore.isLoading
+			)
+			.ignoresSafeArea()
+		} else if _pagedStore.failedInitialLoad, let _sources, !_sources.isEmpty {
+			SourceAppsTableRepresentableView(
+				sources: _sources,
+				searchText: $_searchText,
+				sortOption: $_sortOption,
+				sortAscending: $_sortAscending,
+				categories: categories,
+				selectedCategory: $_selectedCategory,
+				onSelect: { self._selectedRoute = $0 }
+			)
+			.ignoresSafeArea()
+		} else {
+			CeresifyLoaderView()
+		}
+	}
+
+	private var _pagedRepository: ASRepository {
+		ASRepository(
+			id: object.first?.identifier,
+			name: object.first?.name,
+			apps: _pagedStore.apps
+		)
 	}
 
 	private func _load() {

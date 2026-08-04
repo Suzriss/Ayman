@@ -14,15 +14,20 @@ import NimbleViews
 struct HomeView: View {
     @Environment(\.openURL) var openURL
     @StateObject var viewModel = SourcesViewModel.shared
-    
+    @ObservedObject private var _pagedStore = CeresifyPagedAppsStore.shared
+
     @State private var _allApps: [(source: ASRepository, app: ASRepository.App)] = []
     @State private var _banners: [ASRepository.News] = []
-    @State private var _featured: [CeresifyStore.Featured] = []
+    /// خطة بديلة لو رد ?page=1 ما رجّع مميّزين (مثلاً endpoint الـ pagination
+    /// مو جاهز بعد) — نجيبهم من المسار الكامل القديم بدل ما القسم يضل فاضي.
+    @State private var _legacyFeatured: [CeresifyStore.Featured] = []
     @State private var _selectedRoute: SourceAppRoute?
-    @State private var isLoading = true
     @State private var _currentBannerIndex = 0
-    @State private var hasLoadedOnce = false
-    
+    /// جلب البنرات/كل التطبيقات (لغرض التنقل) يشتغل بالخلفية بدون ما يعطّل ظهور
+    /// المحتوى السريع من التحميل المجزّأ.
+    @State private var _isBackgroundLoading = true
+    @State private var _hasStartedBackgroundLoad = false
+
     private let bannerTimer = Timer.publish(every: 3.5, on: .main, in: .common).autoconnect()
 
     @FetchRequest(
@@ -31,12 +36,29 @@ struct HomeView: View {
         animation: .snappy
     ) private var _sources: FetchedResults<AltSource>
 
+    private var _displayFeatured: [CeresifyStore.Featured] {
+        _pagedStore.featured.isEmpty ? _legacyFeatured : _pagedStore.featured
+    }
+
+    /// يبحث عن تطبيق ببصمة bundleId — من التحميل المجزّأ السريع أول شي، وبعدين
+    /// من الفهرس الكامل (يجهز بالخلفية) لما يوصل.
+    private func _findApp(byId appId: String) -> (source: ASRepository, app: ASRepository.App)? {
+        if let match = _allApps.first(where: { $0.app.id == appId }) {
+            return match
+        }
+        guard let app = _pagedStore.apps.first(where: { $0.id == appId }) else { return nil }
+        let synthetic = ASRepository(id: "ceresify", name: nil, apps: _pagedStore.apps)
+        return (source: synthetic, app: app)
+    }
+
     var body: some View {
         NBNavigationView("الرئيسية") {
             ZStack {
-                if isLoading && _banners.isEmpty && _featured.isEmpty {
-                    ProgressView("جاري التحديث...")
-                } else if _banners.isEmpty && _featured.isEmpty {
+                let stillLoading = _pagedStore.isLoading || _isBackgroundLoading
+
+                if stillLoading && _banners.isEmpty && _displayFeatured.isEmpty {
+                    CeresifyLoaderView(message: "جاري التحديث...")
+                } else if _banners.isEmpty && _displayFeatured.isEmpty {
                     if #available(iOS 17, *) {
                         ContentUnavailableView {
                             Label("لا توجد تطبيقات", systemImage: "tray.fill")
@@ -57,12 +79,12 @@ struct HomeView: View {
                                 TabView(selection: $_currentBannerIndex) {
                                     ForEach(_banners.indices, id: \.self) { index in
                                         let banner = _banners[index]
-                                        
+
                                         Button {
                                             if let url = banner.url {
                                                 openURL(url)
-                                            } else if let appID = banner.appID,
-                                                      let targetApp = _allApps.first(where: { $0.app.id == appID }) {
+                                            } else if let appID = banner.appID.flatMap({ $0 }),
+                                                      let targetApp = _findApp(byId: appID) {
                                                 _selectedRoute = SourceAppRoute(source: targetApp.source, app: targetApp.app)
                                             }
                                         } label: {
@@ -113,22 +135,13 @@ struct HomeView: View {
                 SourceAppsDetailView(source: route.source, app: route.app)
             }
             .refreshable {
-                // محاولة الجلب وفي حال حدوث خطأ في سورس خارجي لا يتوقف البرنامج
-                do {
-                    await viewModel.fetchSources(_sources, refresh: true)
-                } catch {
-                    print("صيانة السورسات الخارجية جارية...")
-                }
-                _loadData()
+                await _pagedStore.refresh()
+                await _loadBackgroundData(force: true)
             }
         }
         .task(id: Array(_sources)) {
-            do {
-                await viewModel.fetchSources(_sources)
-            } catch {
-                print("تحميل صامت للسورسات المتاحة...")
-            }
-            _loadData()
+            await _pagedStore.loadInitialIfNeeded()
+            await _loadBackgroundData()
         }
     }
 
@@ -137,9 +150,9 @@ struct HomeView: View {
     @ViewBuilder
     private var _featuredSection: some View {
         // MARK: - قسم التطبيقات المميّزة (بطاقات كبيرة تُدار من اللوحة)
-        if !_featured.isEmpty {
+        if !_displayFeatured.isEmpty {
             Section {
-                ForEach(_featured) { item in
+                ForEach(_displayFeatured) { item in
                     _featuredRow(item)
                 }
             }
@@ -160,59 +173,61 @@ struct HomeView: View {
     }
 
     private func _selectFeatured(_ item: CeresifyStore.Featured) {
-        if let target = _allApps.first(where: { $0.app.id == item.bundleIdentifier }) {
+        if let target = _findApp(byId: item.bundleIdentifier) {
             _selectedRoute = SourceAppRoute(source: target.source, app: target.app)
         }
     }
 
-    // MARK: - جلب البيانات الآمن
-    private func _loadData(force: Bool = false) {
+    // MARK: - جلب البنرات وفهرس التنقل الكامل (بالخلفية، ما يعطّل عرض المميّزين)
+    private func _loadBackgroundData(force: Bool = false) async {
         // نحمّل مرة وحدة فقط — التبديل بين الخانات ما يعيد الجلب.
         // (force = true عند السحب للتحديث)
-        guard force || !hasLoadedOnce else { return }
-        isLoading = true
-        Task {
-            let rawSources = _sources
-            
-            var allApps: [(source: ASRepository, app: ASRepository.App)] = []
-            var allBanners: [ASRepository.News] = []
+        guard force || !_hasStartedBackgroundLoad else { return }
+        _hasStartedBackgroundLoad = true
+        _isBackgroundLoading = true
 
-            // التعديل: المرور على rawSources للوصول الآمن للمعلومات دون الحاجة لخاصية identifier
-            for rawSource in rawSources {
-                guard let source = viewModel.sources[rawSource] else { continue }
-                
-                // حماية 1: قراءة التطبيقات بشكل مستقل
-                let sourceApps = source.apps
-                for app in sourceApps {
-                    allApps.append((source: source, app: app))
-                }
-                
-                // حماية 2: البنرات تجي من مصدر أحمد المصنّف فقط (تدار من لوحة تحكم Ceresify)
-                if let sourceURLString = rawSource.sourceURL?.absoluteString.lowercased() {
-                    if sourceURLString == CeresifyStore.repoURLString.lowercased() {
-                        if let news = source.news {
-                            allBanners.append(contentsOf: news)
-                        }
-                    }
-                }
+        do {
+            await viewModel.fetchSources(_sources, refresh: force)
+        } catch {
+            print("تحميل صامت للسورسات المتاحة...")
+        }
+
+        let rawSources = _sources
+
+        var allApps: [(source: ASRepository, app: ASRepository.App)] = []
+        var allBanners: [ASRepository.News] = []
+
+        for rawSource in rawSources {
+            guard let source = viewModel.sources[rawSource] else { continue }
+
+            for app in source.apps {
+                allApps.append((source: source, app: app))
             }
 
-            let validBanners = allBanners.filter { $0.imageURL != nil }
-
-            let featured = await CeresifyStore.fetchFeatured()
-
-            DispatchQueue.main.async {
-                self.hasLoadedOnce = true
-                self._featured = featured
-                self._allApps = allApps
-                self._banners = validBanners
-
-                if self._currentBannerIndex >= validBanners.count {
-                    self._currentBannerIndex = 0
-                }
-                self.isLoading = false
+            // البنرات تجي من مصدر أحمد المصنّف فقط (تدار من لوحة تحكم Ceresify)
+            if let sourceURLString = rawSource.sourceURL?.absoluteString.lowercased(),
+               sourceURLString == CeresifyStore.repoURLString.lowercased(),
+               let news = source.news {
+                allBanners.append(contentsOf: news)
             }
         }
+
+        let validBanners = allBanners.filter { $0.imageURL != nil }
+
+        // خطة بديلة للمميّزين فقط إذا فشل المسار السريع (paged) يجيبهم.
+        var legacyFeatured: [CeresifyStore.Featured] = []
+        if _pagedStore.featured.isEmpty {
+            legacyFeatured = await CeresifyStore.fetchFeatured()
+        }
+
+        self._allApps = allApps
+        self._banners = validBanners
+        self._legacyFeatured = legacyFeatured
+
+        if self._currentBannerIndex >= validBanners.count {
+            self._currentBannerIndex = 0
+        }
+        self._isBackgroundLoading = false
     }
 }
 

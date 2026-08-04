@@ -119,6 +119,30 @@ public struct ASRepository: Sendable, Decodable, Hashable, Identifiable {
 		iconURL ?? apps.first?.iconURL
 	}
 
+	/// إنشاء يدوي بدون فك تشفير JSON — يُستخدم لتغذية العرض من نتائج
+	/// pagination (مثل CeresifyStore.fetchPagedApps) بدل تنزيل الريبو كامل.
+	public init(
+		id: String?,
+		name: String?,
+		apps: [App],
+		news: [News]? = nil,
+		iconURL: URL? = nil
+	) {
+		self.id = id
+		self.name = name
+		self.subtitle = nil
+		self.description = nil
+		self.website = nil
+		self.iconURL = iconURL
+		self.headerURL = nil
+		self.tintColor = nil
+		self.patreonURL = nil
+		self.userInfo = nil
+		self.apps = apps
+		self.featuredApps = []
+		self.news = news
+	}
+
 	//	func encode(to encoder: any Encoder) throws {
 	//		var container = encoder.container(keyedBy: CodingKeys.self)
 	//		try container.encode(id, forKey: .id)
