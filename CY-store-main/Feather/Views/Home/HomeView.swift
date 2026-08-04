@@ -16,17 +16,16 @@ struct HomeView: View {
     @StateObject var viewModel = SourcesViewModel.shared
     @ObservedObject private var _pagedStore = CeresifyPagedAppsStore.shared
 
-    @State private var _allApps: [(source: ASRepository, app: ASRepository.App)] = []
-    @State private var _banners: [ASRepository.News] = []
-    /// خطة بديلة لو رد ?page=1 ما رجّع مميّزين (مثلاً endpoint الـ pagination
-    /// مو جاهز بعد) — نجيبهم من المسار الكامل القديم بدل ما القسم يضل فاضي.
-    @State private var _legacyFeatured: [CeresifyStore.Featured] = []
     @State private var _selectedRoute: SourceAppRoute?
     @State private var _currentBannerIndex = 0
-    /// جلب البنرات/كل التطبيقات (لغرض التنقل) يشتغل بالخلفية بدون ما يعطّل ظهور
-    /// المحتوى السريع من التحميل المجزّأ.
-    @State private var _isBackgroundLoading = true
-    @State private var _hasStartedBackgroundLoad = false
+
+    /// خطة بديلة كاملة (سورسات + repo.json) — تُملأ فقط لو فشل التحميل
+    /// المجزّأ الأول (failedInitialLoad)، عشان الرئيسية ما تضل فاضية.
+    @State private var _legacyAllApps: [(source: ASRepository, app: ASRepository.App)] = []
+    @State private var _legacyBanners: [ASRepository.News] = []
+    @State private var _legacyFeatured: [CeresifyStore.Featured] = []
+    @State private var _isBackgroundLoading = false
+    @State private var _hasStartedLegacyFallback = false
 
     private let bannerTimer = Timer.publish(every: 3.5, on: .main, in: .common).autoconnect()
 
@@ -40,15 +39,24 @@ struct HomeView: View {
         _pagedStore.featured.isEmpty ? _legacyFeatured : _pagedStore.featured
     }
 
-    /// يبحث عن تطبيق ببصمة bundleId — من التحميل المجزّأ السريع أول شي، وبعدين
-    /// من الفهرس الكامل (يجهز بالخلفية) لما يوصل.
-    private func _findApp(byId appId: String) -> (source: ASRepository, app: ASRepository.App)? {
-        if let match = _allApps.first(where: { $0.app.id == appId }) {
-            return match
-        }
-        guard let app = _pagedStore.apps.first(where: { $0.id == appId }) else { return nil }
+    /// كل التطبيقات (لغرض التنقل من البنرات/المميّزين) — من التحميل المجزّأ
+    /// السريع عادةً، أو من الخطة البديلة الكاملة لو فشل الأول.
+    private var _allApps: [(source: ASRepository, app: ASRepository.App)] {
+        guard !_pagedStore.apps.isEmpty else { return _legacyAllApps }
         let synthetic = ASRepository(id: "ceresify", name: nil, apps: _pagedStore.apps)
-        return (source: synthetic, app: app)
+        return _pagedStore.apps.map { (source: synthetic, app: $0) }
+    }
+
+    /// البنرات الإعلانية — من ردّ الصفحة الأولى (سريع)، أو من الخطة البديلة
+    /// الكاملة لو فشل التحميل المجزّأ.
+    private var _banners: [ASRepository.News] {
+        let pagedBanners = _pagedStore.news.filter { $0.imageURL != nil }
+        return pagedBanners.isEmpty ? _legacyBanners : pagedBanners
+    }
+
+    /// يبحث عن تطبيق ببصمة bundleId داخل فهرس التنقل الحالي.
+    private func _findApp(byId appId: String) -> (source: ASRepository, app: ASRepository.App)? {
+        _allApps.first(where: { $0.app.id == appId })
     }
 
     var body: some View {
@@ -136,12 +144,12 @@ struct HomeView: View {
             }
             .refreshable {
                 await _pagedStore.refresh()
-                await _loadBackgroundData(force: true)
+                await _loadLegacyFallbackIfNeeded(force: true)
             }
         }
         .task(id: Array(_sources)) {
             await _pagedStore.loadInitialIfNeeded()
-            await _loadBackgroundData()
+            await _loadLegacyFallbackIfNeeded()
         }
     }
 
@@ -178,19 +186,18 @@ struct HomeView: View {
         }
     }
 
-    // MARK: - جلب البنرات وفهرس التنقل الكامل (بالخلفية، ما يعطّل عرض المميّزين)
-    private func _loadBackgroundData(force: Bool = false) async {
-        // نحمّل مرة وحدة فقط — التبديل بين الخانات ما يعيد الجلب.
-        // (force = true عند السحب للتحديث)
-        guard force || !_hasStartedBackgroundLoad else { return }
-        _hasStartedBackgroundLoad = true
+    // MARK: - الخطة البديلة الكاملة (تشتغل بس لو فشل التحميل المجزّأ الأول)
+    /// تنزّل السورسات كاملة (الطريقة القديمة) عشان الرئيسية ما تضل فاضية لو
+    /// endpoint الـ pagination غير متاح. لا تشتغل إطلاقاً بالمسار الطبيعي —
+    /// تُفعَّل فقط لما _pagedStore.failedInitialLoad تصير true.
+    private func _loadLegacyFallbackIfNeeded(force: Bool = false) async {
+        guard _pagedStore.failedInitialLoad else { return }
+        guard force || !_hasStartedLegacyFallback else { return }
+        _hasStartedLegacyFallback = true
         _isBackgroundLoading = true
+        defer { _isBackgroundLoading = false }
 
-        do {
-            await viewModel.fetchSources(_sources, refresh: force)
-        } catch {
-            print("تحميل صامت للسورسات المتاحة...")
-        }
+        await viewModel.fetchSources(_sources, refresh: force)
 
         let rawSources = _sources
 
@@ -213,21 +220,15 @@ struct HomeView: View {
         }
 
         let validBanners = allBanners.filter { $0.imageURL != nil }
+        let legacyFeatured = await CeresifyStore.fetchFeatured()
 
-        // خطة بديلة للمميّزين فقط إذا فشل المسار السريع (paged) يجيبهم.
-        var legacyFeatured: [CeresifyStore.Featured] = []
-        if _pagedStore.featured.isEmpty {
-            legacyFeatured = await CeresifyStore.fetchFeatured()
-        }
-
-        self._allApps = allApps
-        self._banners = validBanners
+        self._legacyAllApps = allApps
+        self._legacyBanners = validBanners
         self._legacyFeatured = legacyFeatured
 
         if self._currentBannerIndex >= validBanners.count {
             self._currentBannerIndex = 0
         }
-        self._isBackgroundLoading = false
     }
 }
 

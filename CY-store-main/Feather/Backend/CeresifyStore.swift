@@ -77,6 +77,8 @@ enum CeresifyStore {
         var hasMore: Bool
         /// موجودة فقط بردّ الصفحة الأولى.
         var featured: [Featured]?
+        /// موجودة فقط بردّ الصفحة الأولى (نفس شكل بنرات repo.json).
+        var news: [ASRepository.News]?
     }
 
     /// يجيب صفحة وحدة من كتالوج التطبيقات عبر endpoint الـ pagination الجاهز

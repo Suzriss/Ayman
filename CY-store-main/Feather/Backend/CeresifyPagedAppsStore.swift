@@ -17,6 +17,7 @@ final class CeresifyPagedAppsStore: ObservableObject {
 
     @Published private(set) var apps: [ASRepository.App] = []
     @Published private(set) var featured: [CeresifyStore.Featured] = []
+    @Published private(set) var news: [ASRepository.News] = []
     @Published private(set) var isLoading = false
     @Published private(set) var isLoadingMore = false
     @Published private(set) var hasMore = true
@@ -89,6 +90,9 @@ final class CeresifyPagedAppsStore: ObservableObject {
         hasMore = result.hasMore
         if let pageFeatured = result.featured {
             featured = pageFeatured
+        }
+        if let pageNews = result.news {
+            news = pageNews
         }
         _hasLoadedOnce = true
     }
