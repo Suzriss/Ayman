@@ -21,6 +21,7 @@ struct HomeView: View {
     @State private var _selectedRoute: SourceAppRoute?
     @State private var isLoading = true
     @State private var _currentBannerIndex = 0
+    @State private var hasLoadedOnce = false
     
     private let bannerTimer = Timer.publish(every: 3.5, on: .main, in: .common).autoconnect()
 
