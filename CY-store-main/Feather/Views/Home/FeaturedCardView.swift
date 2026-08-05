@@ -8,6 +8,10 @@ import SwiftUI
 struct FeaturedCardView: View {
     let item: CeresifyStore.Featured
 
+    /// نفس اللون الذهبي المعتمد بهوية التطبيق (تينت النافذة الافتراضي +
+    /// لودر Ceresify)، يُستخدم هنا كإطار حول بطاقات المميّزين.
+    private let _gold = Color(hex: "#B28231")
+
     var body: some View {
         ZStack(alignment: .bottomLeading) {
             AsyncImage(url: item.imageURL) { phase in
@@ -38,5 +42,10 @@ struct FeaturedCardView: View {
         }
         .frame(height: 200)
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .strokeBorder(_gold, lineWidth: 2)
+        )
+        .shadow(color: _gold.opacity(0.35), radius: 8, y: 3)
     }
 }
