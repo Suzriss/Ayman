@@ -130,7 +130,8 @@ struct SourceAppsView: View {
 				onSelect: { self._selectedRoute = $0 },
 				onLoadMore: { Task { await _pagedStore.loadNextPageIfNeeded() } },
 				onRefresh: { Task { await _pagedStore.refresh() } },
-				isRefreshing: _pagedStore.isLoading
+				isRefreshing: _pagedStore.isLoading,
+				totalCount: _pagedStore.totalApps
 			)
 			.ignoresSafeArea()
 		} else if _pagedStore.failedInitialLoad, let _sources, !_sources.isEmpty {

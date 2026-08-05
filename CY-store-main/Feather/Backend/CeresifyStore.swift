@@ -79,6 +79,9 @@ enum CeresifyStore {
         var featured: [Featured]?
         /// موجودة فقط بردّ الصفحة الأولى (نفس شكل بنرات repo.json).
         var news: [ASRepository.News]?
+        /// موجودة فقط بردّ الصفحة الأولى — قائمة الفئات الكاملة من السيرفر
+        /// (بعكس categories(from:) اللي تبنى من التطبيقات المحمّلة بالذاكرة بس).
+        var categories: [Category]?
     }
 
     /// يجيب صفحة وحدة من كتالوج التطبيقات عبر endpoint الـ pagination الجاهز

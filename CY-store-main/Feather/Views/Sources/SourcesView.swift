@@ -84,8 +84,10 @@ struct SourcesView: View {
 
     /// يجيب فئات لوحة التحكم أولاً — رد صغير وسريع مستقل عن تنزيل السورسات
     /// كاملة، عشان السلايدر يظهر قبل ما تجهز التطبيقات. إذا اللوحة رجّعت
-    /// فاضية (ما فيها فئات مُدارة بعد) نبنيها من التطبيقات المحمّلة عبر
-    /// المسار المجزّأ السريع (بدون انتظار تنزيل ريبو أحمد كامل).
+    /// فاضية (ما فيها فئات مُدارة بعد)، نستعمل قائمة الفئات الكاملة اللي
+    /// يرجّعها /api/apps/paged بردّ الصفحة الأولى (تغطي كل الفئات حتى لو
+    /// تطبيقاتها ما تحمّلت بعد بالذاكرة). وكخطة أخيرة، نبنيها من التطبيقات
+    /// المحمّلة فعلياً (ناقصة، بس أفضل من ولا شي).
     private func _loadCategories() async {
         guard _ahmadSource != nil else { return }
 
@@ -96,6 +98,13 @@ struct SourcesView: View {
         }
 
         await CeresifyPagedAppsStore.shared.loadInitialIfNeeded()
+
+        let serverCategories = CeresifyPagedAppsStore.shared.categories
+        if !serverCategories.isEmpty {
+            _categories = serverCategories
+            return
+        }
+
         let appCategories = CeresifyStore.categories(from: CeresifyPagedAppsStore.shared.apps)
         guard !appCategories.isEmpty else { return }
         _categories = appCategories

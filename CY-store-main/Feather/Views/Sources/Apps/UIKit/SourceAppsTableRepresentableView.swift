@@ -25,6 +25,9 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 	var onRefresh: (() -> Void)? = nil
 	/// حالة التحديث الفعلية — تُنهي أنيميشن UIRefreshControl لما تصير false.
 	var isRefreshing: Bool = false
+	/// العدد الحقيقي الكامل من السيرفر (total) — يُعرض بعنوان القسم بدل عدد
+	/// التطبيقات المحمّلة بالذاكرة فقط، طالما ما فيه فلترة (بحث/فئة) فعالة.
+	var totalCount: Int? = nil
 
 	func makeUIView(context: Context) -> UITableView {
 		let tableView = UITableView(frame: .zero, style: .plain)
@@ -66,6 +69,7 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 		let sortDirectionChanged = context.coordinator.sortAscending != sortAscending
 		let categoryChanged = context.coordinator.selectedCategory != selectedCategory
 		let categoriesChanged = context.coordinator.categories != categories
+		let totalCountChanged = context.coordinator.totalCount != totalCount
 
 		context.coordinator.sources = sources
 		context.coordinator.searchText = searchText
@@ -75,6 +79,7 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 		context.coordinator.selectedCategory = selectedCategory
 		context.coordinator.selectedCategoryBinding = $selectedCategory
 		context.coordinator.onLoadMore = onLoadMore
+		context.coordinator.totalCount = totalCount
 
 		if !isRefreshing, tableView.refreshControl?.isRefreshing == true {
 			tableView.refreshControl?.endRefreshing()
@@ -86,6 +91,8 @@ struct SourceAppsTableRepresentableView: UIViewRepresentable {
 
 		if sourcesChanged || searchChanged || sortOptionChanged || sortDirectionChanged || categoryChanged {
 			context.coordinator.invalidateCache()
+		} else if totalCountChanged, tableView.numberOfSections > 0 {
+			tableView.reloadSections(IndexSet(integer: 0), with: .none)
 		}
 	}
 
@@ -117,6 +124,7 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 	let onSelect: (SourceAppsView.SourceAppRoute) -> Void
 	var onLoadMore: (() -> Void)?
 	let onRefresh: (() -> Void)?
+	var totalCount: Int?
 
 	private var _groupedAppsByNameFirstLetter: [String: [(source: ASRepository, app: ASRepository.App)]] = [:]
 	private var _groupedAppsByDate: [String: [(source: ASRepository, app: ASRepository.App)]] = [:]
@@ -404,7 +412,16 @@ extension SourceAppsTableRepresentableView { class Coordinator: NSObject, UITabl
 		let title: String
 
 		switch sortOption {
-		case .default: title = "\(_sortedApps.count) تطبيقات"
+		case .default:
+			// نعرض العدد الحقيقي الكامل من السيرفر بدل عدد التطبيقات المحمّلة
+			// بالذاكرة لحد الآن، بس طالما ما فيه فلترة فعّالة (بحث/فئة) —
+			// لأن الفلترة تصير محلياً على المحمّل فقط، فعددها الحقيقي هو
+			// _sortedApps.count.
+			if let totalCount, totalCount > 0, selectedCategory == nil, searchText.isEmpty {
+				title = "\(totalCount) تطبيقات"
+			} else {
+				title = "\(_sortedApps.count) تطبيقات"
+			}
 		case .name, .date: title = _sortedSectionTitles[section]
 		}
 
