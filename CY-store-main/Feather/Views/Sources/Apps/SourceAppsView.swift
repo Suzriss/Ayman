@@ -47,6 +47,10 @@ struct SourceAppsView: View {
 	/// true لمصدر أحمد المصنّف — يفعّل التحميل المجزّأ (pagination) بدل انتظار
 	/// تنزيل السورس كامل. أي سورس ثاني يبقى على المسار القديم.
 	var isCeresifySource: Bool = false
+	/// true لما الفئات خلصت تحميلها (نجحت أو رجعت فاضية) — نستخدمها لمنع
+	/// ظهور التطبيقات قبل ما تجهز الفئات، عشان ما تصير قفزة بالواجهة
+	/// (تطبيقات تظهر أول من دون سلايدر الفئات وبعدين السلايدر ينط فوقهم).
+	var categoriesLoaded: Bool = true
 	@ObservedObject var viewModel: SourcesViewModel
 	@ObservedObject private var _pagedStore = CeresifyPagedAppsStore.shared
 	@State private var _sources: [ASRepository]?
@@ -119,7 +123,7 @@ struct SourceAppsView: View {
 	/// مو جاهز بعد)، نرجع تلقائياً لمسار التحميل الكامل القديم كخطة بديلة آمنة.
 	@ViewBuilder
 	private var _pagedContent: some View {
-		if !_pagedStore.apps.isEmpty {
+		if !_pagedStore.apps.isEmpty, categoriesLoaded {
 			SourceAppsTableRepresentableView(
 				sources: [_pagedRepository],
 				searchText: $_searchText,

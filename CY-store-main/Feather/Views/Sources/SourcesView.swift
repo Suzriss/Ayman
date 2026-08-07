@@ -42,7 +42,7 @@ struct SourcesView: View {
         NBNavigationView("التطبيقات") {
             Group {
                 if let ahmad = _ahmadSource {
-                    SourceAppsView(object: [ahmad], categories: _categories, isCeresifySource: true, viewModel: viewModel)
+                    SourceAppsView(object: [ahmad], categories: _categories, isCeresifySource: true, categoriesLoaded: _didLoadCategories, viewModel: viewModel)
                 } else {
                     // لسه سورس أحمد ما انسحب أو انحذف — نعرض كل السورسات المتوفرة مؤقتاً بدون فئات
                     SourceAppsView(object: Array(_sources), viewModel: viewModel)
