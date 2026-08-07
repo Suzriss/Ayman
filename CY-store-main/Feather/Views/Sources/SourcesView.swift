@@ -82,28 +82,29 @@ struct SourcesView: View {
         }
     }
 
-    /// يجيب فئات لوحة التحكم أولاً — رد صغير وسريع مستقل عن تنزيل السورسات
-    /// كاملة، عشان السلايدر يظهر قبل ما تجهز التطبيقات. إذا اللوحة رجّعت
-    /// فاضية (ما فيها فئات مُدارة بعد)، نستعمل قائمة الفئات الكاملة اللي
-    /// يرجّعها /api/apps/paged بردّ الصفحة الأولى (تغطي كل الفئات حتى لو
-    /// تطبيقاتها ما تحمّلت بعد بالذاكرة). وكخطة أخيرة، نبنيها من التطبيقات
-    /// المحمّلة فعلياً (ناقصة، بس أفضل من ولا شي).
+    /// يجيب فئات اللوحة (/api/categories) وفئات ردّ /api/apps/paged بالتوازي —
+    /// نفس الطلب اللي أصلاً يجيب التطبيقات ويظهرها بالسلايدر، فتوصل بنفس
+    /// سرعة التطبيقات بالضبط. نعرض فئات الـ paged فوراً أول ما توصل عشان
+    /// السلايدر ما يضل متأخر عن التطبيقات، وبعدين نرقّي لفئات اللوحة (أسماء
+    /// وأيقونات أحسن) إذا وصلت ورجّعت شي فعلي. وكخطة أخيرة، نبنيها من
+    /// التطبيقات المحمّلة فعلياً (ناقصة، بس أفضل من ولا شي).
     private func _loadCategories() async {
         guard _ahmadSource != nil else { return }
 
-        let panel = await CeresifyStore.fetchCategories()
+        async let panelTask = CeresifyStore.fetchCategories()
+
+        await CeresifyPagedAppsStore.shared.loadInitialIfNeeded()
+        let serverCategories = CeresifyPagedAppsStore.shared.categories
+        if !serverCategories.isEmpty {
+            _categories = serverCategories
+        }
+
+        let panel = await panelTask
         if !panel.isEmpty {
             _categories = panel
             return
         }
-
-        await CeresifyPagedAppsStore.shared.loadInitialIfNeeded()
-
-        let serverCategories = CeresifyPagedAppsStore.shared.categories
-        if !serverCategories.isEmpty {
-            _categories = serverCategories
-            return
-        }
+        if !serverCategories.isEmpty { return }
 
         let appCategories = CeresifyStore.categories(from: CeresifyPagedAppsStore.shared.apps)
         guard !appCategories.isEmpty else { return }

@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import NukeUI
 
 struct FeaturedCardView: View {
     let item: CeresifyStore.Featured
@@ -14,10 +15,10 @@ struct FeaturedCardView: View {
 
     var body: some View {
         ZStack(alignment: .bottomLeading) {
-            AsyncImage(url: item.imageURL) { phase in
-                if let image = phase.image {
+            LazyImage(url: item.imageURL) { state in
+                if let image = state.image {
                     image.resizable().aspectRatio(contentMode: .fill)
-                } else if phase.error != nil {
+                } else if state.error != nil {
                     Rectangle().fill(Color(uiColor: .secondarySystemBackground))
                         .overlay(Image(systemName: "photo.fill").foregroundColor(.secondary))
                 } else {

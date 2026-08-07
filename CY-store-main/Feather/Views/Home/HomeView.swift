@@ -10,6 +10,7 @@ import SwiftUI
 import CoreData
 import AltSourceKit
 import NimbleViews
+import NukeUI
 
 struct HomeView: View {
     @Environment(\.openURL) var openURL
@@ -97,12 +98,12 @@ struct HomeView: View {
                                             }
                                         } label: {
                                             if let imgUrl = banner.imageURL {
-                                                AsyncImage(url: imgUrl) { phase in
-                                                    if let image = phase.image {
+                                                LazyImage(url: imgUrl) { state in
+                                                    if let image = state.image {
                                                         image
                                                             .resizable()
                                                             .aspectRatio(contentMode: .fill)
-                                                    } else if phase.error != nil {
+                                                    } else if state.error != nil {
                                                         Rectangle()
                                                             .fill(Color(uiColor: .secondarySystemBackground))
                                                             .overlay(Image(systemName: "photo.fill").foregroundColor(.secondary))
